@@ -76,7 +76,7 @@ async def fetch_playlist(request: PlaylistRequest):
                     )
                     videos.append(video_info)
 
-            return PlaylistRespone(
+            return PlaylistResponse(
                 playlist_title = playlist_info.get('title', ''),
                 videos = videos
             )
