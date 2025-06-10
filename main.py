@@ -45,42 +45,53 @@ class DownloadResponse(BaseModel):
 async def root():
     return {"message": "YouTube Playlist Downloader API is running"}
 
-@app.post('/api/fetch_playlist', response_model = PlaylistResponse) # Fetching playlist videos from Youtube
+@app.post('/api/fetch_playlist', response_model = PlaylistResponse)
 async def fetch_playlist(request: PlaylistRequest):
     try: 
         ydl_opts = {
-            'quiet': True, # Suppress output
-            'extract_flat': True, # Don't download videos, just get info
-            'force_generic_extractor': False # Use yt-dlp's generic extractor
+            'quiet': True,
+            'extract_flat': 'in_playlist',  # Changed to in_playlist to get all videos
+            'force_generic_extractor': False,
+            'ignoreerrors': True  # Continue even if some videos fail
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
+            # Extract playlist info
             playlist_info = ydl.extract_info(str(request.url), download=False)
-
+            
             if not playlist_info:
                 raise HTTPException(status_code = 404, detail = "Playlist not found")
             
-            # extract video info from playlist
-
             videos = []
+            entries = playlist_info.get('entries', [])
+            
+            if not entries:
+                raise HTTPException(status_code = 404, detail = "No videos found in playlist")
 
-            for entry in playlist_info.get('entries', []):
-                if entry:
-                    video_info = VideoInfo(
-                        id = entry.get('id'),
-                        title = entry.get('title'),
-                        thumbnail = entry.get('thumbnail'),
-                        duration = entry.get('duration'),
-                        url = f"https://www.youtube.com/watch?v={entry.get('id')}"
-                    )
-                    videos.append(video_info)
+            for entry in entries:
+                if entry and entry.get('id'):  # Only process if we have a valid entry with an ID
+                    try:
+                        video_info = VideoInfo(
+                            id = entry.get('id', ''),
+                            title = entry.get('title', 'Unknown Title'),
+                            thumbnail = entry.get('thumbnail', ''),
+                            duration = entry.get('duration'),
+                            url = f"https://www.youtube.com/watch?v={entry.get('id')}"
+                        )
+                        videos.append(video_info)
+                    except Exception as e:
+                        print(f"Error processing video: {str(e)}")  # Debug log
+                        continue
+
+            if not videos:
+                raise HTTPException(status_code = 404, detail = "Could not extract any videos from playlist")
 
             return PlaylistResponse(
-                playlist_title = playlist_info.get('title', ''),
+                playlist_title = playlist_info.get('title', 'Untitled Playlist'),
                 videos = videos
             )
     except Exception as e:
+        print(f"Error in fetch_playlist: {str(e)}")  # Debug log
         raise HTTPException(status_code = 500, detail = str(e))
 
 
