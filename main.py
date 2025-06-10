@@ -71,12 +71,13 @@ async def fetch_playlist(request: PlaylistRequest):
             for entry in entries:
                 if entry and entry.get('id'):  # Only process if we have a valid entry with an ID
                     try:
+                        video_id = entry.get('id', '')
                         video_info = VideoInfo(
-                            id = entry.get('id', ''),
+                            id = video_id,
                             title = entry.get('title', 'Unknown Title'),
-                            thumbnail = entry.get('thumbnail', ''),
+                            thumbnail = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",  # Using maxresdefault for highest quality
                             duration = entry.get('duration'),
-                            url = f"https://www.youtube.com/watch?v={entry.get('id')}"
+                            url = f"https://www.youtube.com/watch?v={video_id}"
                         )
                         videos.append(video_info)
                     except Exception as e:
